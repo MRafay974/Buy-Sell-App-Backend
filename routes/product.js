@@ -19,29 +19,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-
-router.get("/fetchProduct", async (req, res) => {
-  try {
-    await connectDB(); // Ensure connection before query
-    const products = await Product.find().maxTimeMS(30000);
-    res.status(200).json(products);
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    res.status(500).json({ 
-      message: "Server error",
-      error: error.message 
-    });
-  }
-});
-
 router.post("/addProduct", upload.array("images", 3), async (req, res) => {
   try {
+    // Ensure database connection first
+    await connectDB(); // This is the same connection handling used in GET
+    
     const { name, price, description } = req.body;
     console.log("Request Body:", req.body);
     console.log("Uploaded Files:", req.files);
 
-    
-
+    // Use the same URL construction pattern as in GET
     const imageURLs = req.files.map((file) => `/uploads/${file.filename}`);
 
     const newProduct = new Product({
@@ -51,11 +38,26 @@ router.post("/addProduct", upload.array("images", 3), async (req, res) => {
       imageURL: imageURLs.length > 0 ? imageURLs : undefined,
     });
 
-    await newProduct.save();
-    res.status(201).json({message:"Successfully Added Product"});
+    // Add timeout similar to GET's maxTimeMS
+    await newProduct.save({ maxTimeMS: 30000 });
+    
+    res.status(201).json({
+      message: "Successfully Added Product",
+      product: { // Return the created product similar to GET response structure
+        _id: newProduct._id,
+        name: newProduct.name,
+        price: newProduct.price,
+        description: newProduct.description,
+        imageURL: newProduct.imageURL
+      }
+    });
   } catch (error) {
     console.error("Server Error:", error);
-    res.status(500).json({ message: "Error creating product", error: error.message });
+    res.status(500).json({ 
+      message: "Error creating product", 
+      error: error.message,
+      fullError: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
