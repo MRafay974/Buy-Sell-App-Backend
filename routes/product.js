@@ -1,6 +1,10 @@
 const router = require("express").Router();
 const multer = require("multer");
 const Product = require("../models/product");
+const connectDB = require("../models/db"); // Update path
+
+
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -16,14 +20,17 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
-
 router.get("/fetchProduct", async (req, res) => {
   try {
-    const products = await Product.find();
+    await connectDB(); // Ensure connection before query
+    const products = await Product.find().maxTimeMS(30000);
     res.status(200).json(products);
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ 
+      message: "Server error",
+      error: error.message 
+    });
   }
 });
 
